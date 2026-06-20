@@ -1,15 +1,25 @@
 // =============================================================================
 // agents.mjs — fast reader (v2). Returns the latest scanner result from
 // Supabase. If none yet (or stale), triggers the background scan (debounced)
-// and returns "building" so the frontend shows mock data meanwhile.
+// and returns "building" (with the scanner's last error, if any, for
+// diagnostics). Falls back to mock on the client side.
 // =============================================================================
 
 const H = { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' };
 
-export default async () => {
+export default async (req) => {
   const SB = process.env.SUPABASE_URL;
   const SK = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!SB || !SK) return new Response(JSON.stringify({ status: 'error', detail: 'no supabase env' }), { headers: H });
+
+  // Derive the site origin from the incoming request (reliable even when the
+  // URL env var is absent at runtime).
+  let origin = process.env.URL || process.env.DEPLOY_URL || '';
+  try {
+    origin = new URL(req.url).origin;
+  } catch {
+    /* keep env fallback */
+  }
 
   const sbHeaders = { apikey: SK, authorization: `Bearer ${SK}` };
   const getRow = async (key) => {
@@ -30,32 +40,32 @@ export default async () => {
     }).catch(() => {});
   };
   const triggerScan = async () => {
-    const base = process.env.URL || process.env.DEPLOY_URL || '';
-    if (base) fetch(`${base}/.netlify/functions/agents-scan-background`).catch(() => {});
+    if (origin) fetch(`${origin}/.netlify/functions/agents-scan-background`).catch(() => {});
+  };
+  const maybeTrigger = async () => {
+    const lock = await getRow('lock');
+    if (!lock || Date.now() - Number(lock.data?.ts || 0) > 180000) {
+      await setRow('lock', { ts: Date.now() });
+      await triggerScan();
+      return true;
+    }
+    return false;
   };
 
   try {
     const latest = await getRow('latest');
     if (latest?.data?.recommendations) {
-      // refresh in the background if older than 30 min (debounced by lock)
       const ageMin = (Date.now() - new Date(latest.updated_at).getTime()) / 60000;
-      if (ageMin > 30) {
-        const lock = await getRow('lock');
-        if (!lock || Date.now() - Number(lock.data?.ts || 0) > 180000) {
-          await setRow('lock', { ts: Date.now() });
-          await triggerScan();
-        }
-      }
+      if (ageMin > 30) await maybeTrigger();
       return new Response(JSON.stringify(latest.data), { headers: H });
     }
 
-    // Nothing cached yet — kick off a scan (debounced).
-    const lock = await getRow('lock');
-    if (!lock || Date.now() - Number(lock.data?.ts || 0) > 180000) {
-      await setRow('lock', { ts: Date.now() });
-      await triggerScan();
-    }
-    return new Response(JSON.stringify({ status: 'building' }), { headers: H });
+    const triggered = await maybeTrigger();
+    const err = await getRow('error');
+    return new Response(
+      JSON.stringify({ status: 'building', triggered, origin, lastError: err?.data ?? null }),
+      { headers: H },
+    );
   } catch (e) {
     return new Response(JSON.stringify({ status: 'error', detail: String(e).slice(0, 200) }), { headers: H });
   }
