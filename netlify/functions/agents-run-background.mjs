@@ -5,7 +5,7 @@
 // Triggered by agents.mjs (on demand) and agents-cron.mjs (every 20 min).
 // =============================================================================
 
-import { getStore } from '@netlify/blobs';
+import { connectLambda, getStore } from '@netlify/blobs';
 
 const FINNHUB = 'https://finnhub.io/api/v1';
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages';
@@ -124,7 +124,8 @@ function normalize(p) {
   };
 }
 
-export async function handler() {
+export async function handler(event) {
+  connectLambda(event);
   const fkey = process.env.FINNHUB_API_KEY;
   const akey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.LLM_MODEL || 'claude-sonnet-4-6';

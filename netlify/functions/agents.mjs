@@ -4,7 +4,7 @@
 // "building" status so the frontend shows mock data until the run completes.
 // =============================================================================
 
-import { getStore } from '@netlify/blobs';
+import { connectLambda, getStore } from '@netlify/blobs';
 
 const headers = {
   'content-type': 'application/json',
@@ -12,8 +12,9 @@ const headers = {
   'access-control-allow-origin': '*',
 };
 
-export async function handler() {
+export async function handler(event) {
   try {
+    connectLambda(event);
     const store = getStore('agents');
     const data = await store.get('latest', { type: 'json' });
     if (data && Array.isArray(data.recommendations)) {
