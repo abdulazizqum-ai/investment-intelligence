@@ -18,6 +18,7 @@ export default function RiskDashboard() {
   const { t } = useTranslation();
   const { t2 } = useLocale();
   const { data } = useAsync(() => dataService.getRisks(), []);
+  const { data: macro } = useAsync(() => dataService.getMacro(), []);
   const risk = data?.[0];
 
   const radarData =
@@ -129,6 +130,30 @@ export default function RiskDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Macro / economic indicators */}
+      {macro && (
+        <SectionCard title={`${t('common.trend')} — Macro / ${t('economy.' + macro.state)}`}>
+          <p className="mb-3 text-sm text-slate-300">{t2(macro.summary)}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {macro.indicators.map((ind, i) => (
+              <div key={i} className="rounded-lg bg-slate-800/40 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-200">{t2(ind.label)}</span>
+                  <span
+                    className={`text-xs font-semibold ${
+                      ind.trend === 'up' ? 'text-emerald-400' : ind.trend === 'down' ? 'text-red-400' : 'text-slate-400'
+                    }`}
+                  >
+                    {ind.trend === 'up' ? '▲' : ind.trend === 'down' ? '▼' : '—'}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">{t2(ind.note)}</p>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
 
       <Disclaimer compact />
     </div>

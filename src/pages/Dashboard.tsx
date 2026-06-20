@@ -12,6 +12,7 @@ import { Card, SectionCard, Ring, ScoreBar, Pill } from '@/components/ui';
 import { RecommendationCard, UrgentAlertCard } from '@/components/cards';
 import { Disclaimer } from '@/components/Disclaimer';
 import { QuoteDetailModal } from '@/components/QuoteDetailModal';
+import { Watchlist } from '@/components/Watchlist';
 import { fmtPct, priorityColor, riskLevelColor, timeAgo } from '@/lib/format';
 
 export default function Dashboard() {
@@ -253,6 +254,9 @@ export default function Dashboard() {
           </SectionCard>
         </div>
       </div>
+
+      {/* Watchlist */}
+      <Watchlist />
 
       {/* Long term */}
       {longTerm.length > 0 && (

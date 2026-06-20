@@ -373,13 +373,14 @@ export interface AppNotification {
 // ----------------------------------------------------------------------------
 
 export interface MacroIndicator {
-  key: 'cpi' | 'ppi' | 'pce' | 'gdp' | 'unemployment' | 'jobs' | 'retail_sales';
+  key: 'cpi' | 'ppi' | 'pce' | 'gdp' | 'unemployment' | 'jobs' | 'retail_sales' | 'rates' | 'growth';
   label: Bilingual;
   value: number;
   previous: number;
   consensus: number;
   surprise: boolean;
   trend: 'up' | 'down' | 'flat';
+  note?: Bilingual;
 }
 
 export interface MacroSnapshot {

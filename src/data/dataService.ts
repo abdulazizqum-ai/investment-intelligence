@@ -73,18 +73,40 @@ export const dataService = {
   },
 
   async getCompanies(): Promise<Company[]> {
+    const live = await getAgentData();
+    if (live?.companies?.length) return live.companies;
     return delay(companies);
   },
 
   async getCompany(id: string): Promise<Company | undefined> {
-    return delay(companies.find((c) => c.id === id || c.ticker === id));
+    const live = await getAgentData();
+    const pool = live?.companies?.length ? live.companies : companies;
+    return delay(pool.find((c) => c.id === id || c.ticker === id) ?? pool[0]);
   },
 
   async getRisks(): Promise<RiskAssessment[]> {
+    const live = await getAgentData();
+    if (live?.risk?.components?.length) return [live.risk];
     return delay(riskAssessments);
   },
 
   async getAgents(): Promise<Agent[]> {
+    const live = await getAgentData();
+    if (live?.agents?.length) {
+      // Merge live status/confidence/notes onto the static agent metadata.
+      const byId = new Map(live.agents.map((a) => [a.id, a]));
+      return agents.map((base) => {
+        const l = byId.get(base.id);
+        if (!l) return base;
+        return {
+          ...base,
+          status: l.status,
+          confidence: l.confidence,
+          lastRun: l.lastRun,
+          logs: [{ timestamp: l.lastRun, level: 'info' as const, message: l.note }, ...base.logs],
+        };
+      });
+    }
     return delay(agents);
   },
 
@@ -93,10 +115,22 @@ export const dataService = {
   },
 
   async getAssetClasses(): Promise<AssetClassSummary[]> {
+    const live = await getAgentData();
+    if (live?.assetClasses?.length) {
+      // Keep mock instruments (for live prices) but overlay AI trend/drivers.
+      return assetClasses.map((base) => {
+        const l = live.assetClasses!.find((a) => a.assetType === base.assetType);
+        return l
+          ? { ...base, trend: l.trend, keyDrivers: l.keyDrivers, recommendation: l.recommendation, riskLevel: l.riskLevel }
+          : base;
+      });
+    }
     return delay(assetClasses);
   },
 
   async getMacro(): Promise<MacroSnapshot> {
+    const live = await getAgentData();
+    if (live?.macro?.summary) return live.macro;
     return delay(macro);
   },
 

@@ -7,12 +7,25 @@
 // =============================================================================
 
 import type {
+  AssetClassSummary,
+  Bilingual,
   CausalityChain,
+  Company,
+  MacroSnapshot,
   NewsEvent,
   Recommendation,
+  RiskAssessment,
   SentimentReading,
   UrgentAlert,
 } from '@/types';
+
+export interface LiveAgentOutput {
+  id: string;
+  status: 'active' | 'idle' | 'error';
+  confidence: number;
+  note: Bilingual;
+  lastRun: string;
+}
 
 export interface AgentData {
   recommendations: Recommendation[];
@@ -22,6 +35,11 @@ export interface AgentData {
   sentiment: SentimentReading;
   generatedAt: string;
   screened?: { ticker: string; changePct: number; price: number }[];
+  agents?: LiveAgentOutput[];
+  risk?: RiskAssessment;
+  macro?: MacroSnapshot;
+  assetClasses?: AssetClassSummary[];
+  companies?: Company[];
 }
 
 const ENDPOINT = '/.netlify/functions/agents';
