@@ -74,14 +74,17 @@ const SCHEMA_A = `Output ONLY minified JSON. Bilingual {"en":"","ar":""}, fluent
 "urgentAlerts":[{"ticker":"","assetType":"stock","alertTitle":{"en":"","ar":""},"priority":"critical|high|medium|low","urgencyScore":0-100,"confidenceScore":0-100,"riskScore":0-100,"expectedMove":{"en":"","ar":""},"timeWindow":"","reason":{"en":"","ar":""},"alternativeScenario":{"en":"","ar":""},"invalidationConditions":{"en":"","ar":""},"entryZone":[lo,hi],"targetZone":[lo,hi],"stopLoss":0,"supportingAgents":[""]}]}
 Rules: up to 6 recommendations, up to 3 news, up to 2 causality. urgentAlert ONLY if urgency>=80 AND confidence>=75 AND risk<=65 AND >=3 agents AND clear catalyst; else []. Ground in data.`;
 
-const SCHEMA_B = `Output ONLY minified JSON. Bilingual {"en":"","ar":""}, fluent Arabic, each text ONE short sentence.
+const SCHEMA_B = `Output ONLY minified JSON. Bilingual {"en":"","ar":""}, fluent Arabic, each text ONE very short phrase.
 {"agents":[{"id":"<one of: ${AGENT_IDS.join(',')}>","status":"active|idle|error","confidence":0-100,"note":{"en":"","ar":""}}],
 "risk":{"overallScore":0-100,"summary":{"en":"","ar":""},"components":[{"type":"inflation|interest_rate|geopolitical|recession|sector|market|liquidity|earnings","label":{"en":"","ar":""},"score":0-100,"note":{"en":"","ar":""}}]},
-"macro":{"state":"expanding|slowing|recession_risk|inflationary","summary":{"en":"","ar":""},"indicators":[{"key":"cpi|gdp|unemployment|rates|growth","label":{"en":"","ar":""},"trend":"up|down|flat","note":{"en":"","ar":""}}]},
-"assetClasses":[{"assetType":"stock|metal|energy|agriculture|currency","trend":"bullish|bearish|neutral","keyDrivers":[{"en":"","ar":""}],"recommendation":"buy|hold|watch|sell","riskLevel":"low|moderate|elevated|high|severe"}],
+"macro":{"state":"expanding|slowing|recession_risk|inflationary","summary":{"en":"","ar":""},"indicators":[{"key":"cpi|gdp|unemployment|rates|growth","label":{"en":"","ar":""},"trend":"up|down|flat","note":{"en":"","ar":""}}]}}
+Provide ALL 20 agents (very short notes). 6 risk components. Ground in the provided data.`;
+
+const SCHEMA_C = `Output ONLY minified JSON. Bilingual {"en":"","ar":""}, fluent Arabic, each text ONE short sentence.
+{"assetClasses":[{"assetType":"stock|metal|energy|agriculture|currency","trend":"bullish|bearish|neutral","keyDrivers":[{"en":"","ar":""}],"recommendation":"buy|hold|watch|sell","riskLevel":"low|moderate|elevated|high|severe"}],
 "companies":[{"ticker":"","bull":{"en":"","ar":""},"bear":{"en":"","ar":""},"neutral":{"en":"","ar":""},"finalScore":0-100,"valuationRating":"undervalued|fair_value|overvalued","health":"strong|improving|risky|weak","urgencyScore":0-100}],
 "emerging":[{"ticker":"","sector":"","growthScore":0-100,"mediaMentionsCount":0-100,"bull":{"en":"","ar":""},"bear":{"en":"","ar":""},"neutral":{"en":"","ar":""},"finalScore":0-100,"urgencyScore":0-100}]}
-Provide ALL 20 agents. 5 assetClasses (stock,metal,energy,agriculture,currency). Ground in the provided data.`;
+Provide 5 assetClasses (stock,metal,energy,agriculture,currency), one company object per provided company ticker, one emerging object per provided emerging ticker. Ground in the provided data.`;
 
 function buildCompany(ticker, m, q, narr) {
   const price = q?.price ?? num(m?.['52WeekHigh'] ? (m['52WeekHigh'] + (m['52WeekLow'] || 0)) / 2 : null) ?? 0;
@@ -151,7 +154,10 @@ export default async () => {
     // ---- PASS B ----
     const compactRecs = (a.recommendations || []).map((r) => ({ ticker: r.ticker, type: r.recommendationType }));
     const b = await callClaude(akey, model,
-      `Today: ${now.slice(0, 10)}. Sentiment: ${JSON.stringify(a.sentiment)}. Top movers: ${JSON.stringify(shortlist.slice(0, 10))}. Recommendations: ${JSON.stringify(compactRecs)}. Company tickers to analyze: ${JSON.stringify(recTickers)}. Emerging tickers (small/mid growth): ${JSON.stringify(emShort)}. Market news: ${JSON.stringify(marketNews.slice(0, 5))}.\n\n${SCHEMA_B}`,
+      `Today: ${now.slice(0, 10)}. Sentiment: ${JSON.stringify(a.sentiment)}. Top movers: ${JSON.stringify(shortlist.slice(0, 10))}. Market news: ${JSON.stringify(marketNews.slice(0, 5))}.\n\n${SCHEMA_B}`,
+      6000);
+    const c = await callClaude(akey, model,
+      `Today: ${now.slice(0, 10)}. Sentiment: ${JSON.stringify(a.sentiment)}. Top movers: ${JSON.stringify(shortlist.slice(0, 8))}. Recommendations: ${JSON.stringify(compactRecs)}. Company tickers to analyze: ${JSON.stringify(recTickers)}. Emerging tickers (small/mid growth): ${JSON.stringify(emShort)}.\n\n${SCHEMA_C}`,
       8192);
 
     // ---- Normalize PASS A ----
@@ -182,16 +188,16 @@ export default async () => {
       indicators: (b.macro?.indicators || []).map((m) => ({ key: m.key || 'cpi', label: bil(m.label), value: 0, previous: 0, consensus: 0, surprise: false, trend: m.trend || 'flat', note: bil(m.note) })),
     };
 
-    result.assetClasses = (b.assetClasses || []).map((ac) => ({
+    result.assetClasses = (c.assetClasses || []).map((ac) => ({
       assetType: ac.assetType || 'stock',
       name: bil({ en: ac.assetType, ar: ac.assetType }),
       trend: ac.trend || 'neutral', keyDrivers: (ac.keyDrivers || []).map((d) => bil(d)),
       relatedNewsIds: [], recommendation: ac.recommendation || 'watch', riskLevel: ac.riskLevel || 'moderate', instruments: [],
     }));
 
-    const companies = recTickers.map((t) => buildCompany(t, metrics[t], quoteMap[t], (b.companies || []).find((c) => (c.ticker || '').toUpperCase() === t)));
+    const companies = recTickers.map((t) => buildCompany(t, metrics[t], quoteMap[t], (c.companies || []).find((x) => (x.ticker || '').toUpperCase() === t)));
     const emergingCos = emShort.map((t) => {
-      const narr = (b.emerging || []).find((c) => (c.ticker || '').toUpperCase() === t) || {};
+      const narr = (c.emerging || []).find((x) => (x.ticker || '').toUpperCase() === t) || {};
       return buildCompany(t, metrics[t], quoteMap[t], narr);
     });
     result.companies = [...emergingCos, ...companies];
