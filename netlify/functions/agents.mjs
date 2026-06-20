@@ -1,24 +1,19 @@
 // =============================================================================
-// agents.mjs — fast reader (<1s). Returns the latest agent result from Netlify
-// Blobs. If none yet, it kicks off the background run (debounced) and returns a
-// "building" status so the frontend shows mock data until the run completes.
+// agents.mjs — fast reader (v2 function). Returns the latest agent result from
+// Netlify Blobs. If none yet, kicks off the background run (debounced) and
+// returns a "building" status so the frontend shows mock data meanwhile.
 // =============================================================================
 
-import { connectLambda, getStore } from '@netlify/blobs';
+import { getStore } from '@netlify/blobs';
 
-const headers = {
-  'content-type': 'application/json',
-  'cache-control': 'no-store',
-  'access-control-allow-origin': '*',
-};
+const H = { 'cache-control': 'no-store', 'access-control-allow-origin': '*' };
 
-export async function handler(event) {
+export default async () => {
   try {
-    connectLambda(event);
     const store = getStore('agents');
     const data = await store.get('latest', { type: 'json' });
     if (data && Array.isArray(data.recommendations)) {
-      return { statusCode: 200, headers, body: JSON.stringify(data) };
+      return Response.json(data, { headers: H });
     }
 
     // No data yet — trigger a background build, debounced to once per 2 min.
@@ -27,11 +22,10 @@ export async function handler(event) {
     const now = Date.now();
     if (base && (!lock || now - Number(lock) > 120000)) {
       await store.set('lock', String(now));
-      // fire-and-forget
       fetch(`${base}/.netlify/functions/agents-run-background`).catch(() => {});
     }
-    return { statusCode: 200, headers, body: JSON.stringify({ status: 'building' }) };
+    return Response.json({ status: 'building' }, { headers: H });
   } catch (e) {
-    return { statusCode: 200, headers, body: JSON.stringify({ status: 'error', detail: String(e).slice(0, 200) }) };
+    return Response.json({ status: 'error', detail: String(e).slice(0, 200) }, { headers: H });
   }
-}
+};

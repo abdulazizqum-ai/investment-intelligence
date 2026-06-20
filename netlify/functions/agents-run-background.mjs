@@ -5,7 +5,7 @@
 // Triggered by agents.mjs (on demand) and agents-cron.mjs (every 20 min).
 // =============================================================================
 
-import { connectLambda, getStore } from '@netlify/blobs';
+import { getStore } from '@netlify/blobs';
 
 const FINNHUB = 'https://finnhub.io/api/v1';
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages';
@@ -124,8 +124,7 @@ function normalize(p) {
   };
 }
 
-export async function handler(event) {
-  connectLambda(event);
+export default async () => {
   const fkey = process.env.FINNHUB_API_KEY;
   const akey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.LLM_MODEL || 'claude-sonnet-4-6';
@@ -133,7 +132,7 @@ export async function handler(event) {
 
   if (!fkey || !akey) {
     await store.setJSON('error', { error: 'server keys not configured', at: Date.now() });
-    return { statusCode: 200 };
+    return new Response('ok');
   }
 
   const tickers = (process.env.AGENT_TICKERS || 'NVDA,MSFT,AMD,PLTR,TSLA,SMCI')
@@ -159,20 +158,20 @@ export async function handler(event) {
 
     if (!res.ok) {
       await store.setJSON('error', { error: 'llm error', detail: (await res.text()).slice(0, 300), at: Date.now() });
-      return { statusCode: 200 };
+      return new Response('ok');
     }
     const out = await res.json();
     const text = (out.content || []).map((c) => c.text || '').join('');
     const s = text.indexOf('{'); const e = text.lastIndexOf('}');
     if (s < 0 || e < 0) {
       await store.setJSON('error', { error: 'no json', at: Date.now() });
-      return { statusCode: 200 };
+      return new Response('ok');
     }
     const result = normalize(JSON.parse(text.slice(s, e + 1)));
     await store.setJSON('latest', result);
-    return { statusCode: 200 };
+    return new Response('ok');
   } catch (err) {
     await store.setJSON('error', { error: String(err).slice(0, 300), at: Date.now() });
-    return { statusCode: 200 };
+    return new Response('ok');
   }
 }
