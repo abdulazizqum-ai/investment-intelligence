@@ -53,6 +53,19 @@ export default async (req) => {
   };
 
   try {
+    if (new URL(req.url).searchParams.get('debug') === '1') {
+      const [l, e] = await Promise.all([getRow('latest'), getRow('error')]);
+      return new Response(
+        JSON.stringify({
+          latestAt: l?.updated_at ?? null,
+          hasAgents: !!l?.data?.agents,
+          hasCompanies: !!l?.data?.companies,
+          error: e?.data ?? null,
+        }),
+        { headers: H },
+      );
+    }
+
     const latest = await getRow('latest');
     if (latest?.data?.recommendations) {
       const ageMin = (Date.now() - new Date(latest.updated_at).getTime()) / 60000;
