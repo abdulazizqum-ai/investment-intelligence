@@ -8,6 +8,7 @@
 
 import { getSupabase } from '@/lib/supabaseClient';
 import { USE_SUPABASE } from '@/lib/config';
+import { getAgentData } from './liveAgents';
 import {
   agents,
   assetClasses,
@@ -44,20 +45,20 @@ const delay = <T,>(value: T, ms = 120): Promise<T> =>
 
 export const dataService = {
   async getRecommendations(): Promise<Recommendation[]> {
-    if (USE_SUPABASE) {
-      // const sb = getSupabase();
-      // const { data } = await sb!.from('recommendations').select('*');
-      // return (data ?? []).map(mapRecommendation);
-    }
+    const live = await getAgentData();
+    if (live?.recommendations?.length) return live.recommendations;
     return delay(recommendations);
   },
 
   async getUrgentAlerts(): Promise<UrgentAlert[]> {
-    // TODO(supabase): from('urgent_alerts').select('*').order('created_at')
+    const live = await getAgentData();
+    if (live) return live.urgentAlerts ?? [];
     return delay(urgentAlerts);
   },
 
   async getNews(): Promise<NewsEvent[]> {
+    const live = await getAgentData();
+    if (live?.news?.length) return live.news;
     return delay(newsEvents);
   },
 
@@ -66,6 +67,8 @@ export const dataService = {
   },
 
   async getCausalityChains(): Promise<CausalityChain[]> {
+    const live = await getAgentData();
+    if (live?.causality?.length) return live.causality;
     return delay(causalityChains);
   },
 
@@ -102,6 +105,8 @@ export const dataService = {
   },
 
   async getSentiment(): Promise<SentimentReading> {
+    const live = await getAgentData();
+    if (live?.sentiment) return live.sentiment;
     return delay(sentiment);
   },
 };
