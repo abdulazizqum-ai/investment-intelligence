@@ -136,7 +136,7 @@ export default async () => {
     const marketNews = general.slice(0, 8).map((n) => ({ headline: n.headline, source: n.source }));
 
     // ---- PASS A ----
-    const a = await callClaude(akey,
+    const a = await callClaude(akey, model,
       `Today: ${now.slice(0, 10)}. Act as a 20-agent US-market committee. SCREENED MOVERS: ${JSON.stringify(shortlist)} MARKET NEWS: ${JSON.stringify(marketNews)}\n\n${SCHEMA_A}`,
       8192);
 
@@ -150,7 +150,7 @@ export default async () => {
 
     // ---- PASS B ----
     const compactRecs = (a.recommendations || []).map((r) => ({ ticker: r.ticker, type: r.recommendationType }));
-    const b = await callClaude(akey,
+    const b = await callClaude(akey, model,
       `Today: ${now.slice(0, 10)}. Sentiment: ${JSON.stringify(a.sentiment)}. Top movers: ${JSON.stringify(shortlist.slice(0, 10))}. Recommendations: ${JSON.stringify(compactRecs)}. Company tickers to analyze: ${JSON.stringify(recTickers)}. Emerging tickers (small/mid growth): ${JSON.stringify(emShort)}. Market news: ${JSON.stringify(marketNews.slice(0, 5))}.\n\n${SCHEMA_B}`,
       8192);
 
