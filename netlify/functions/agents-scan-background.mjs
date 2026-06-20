@@ -84,7 +84,7 @@ const SCHEMA = `Output ONLY minified JSON (no markdown). Every narrative field M
 "causality":[{"cause":{"en":"","ar":""},"chain":[{"label":{"en":"","ar":""},"direction":"up|down|neutral"}],"directImpact":{"en":"","ar":""},"secondOrderImpact":{"en":"","ar":""},"thirdOrderImpact":{"en":"","ar":""},"beneficiaries":[""],"losers":[""],"affectedAssets":[""],"timeHorizon":"short_term|medium_term|long_term","urgencyLevel":"critical|high|medium|low","tradeOpportunityProbability":0-100}],
 "recommendations":[{"ticker":"","assetType":"stock","recommendationType":"buy|hold|watch|sell","timeHorizon":"short_term|medium_term|long_term","confidenceScore":0-100,"riskScore":0-100,"urgencyScore":0-100,"entryZone":[lo,hi],"targetZone":[lo,hi],"stopLoss":0,"thesis":{"en":"","ar":""},"reason":{"en":"","ar":""},"catalyst":{"en":"","ar":""},"invalidationConditions":{"en":"","ar":""},"supportingAgents":["equity","growth","valuation","risk","smart_money"]}],
 "urgentAlerts":[{"ticker":"","assetType":"stock","alertTitle":{"en":"","ar":""},"priority":"critical|high|medium|low","urgencyScore":0-100,"confidenceScore":0-100,"riskScore":0-100,"expectedMove":{"en":"","ar":""},"timeWindow":"","reason":{"en":"","ar":""},"alternativeScenario":{"en":"","ar":""},"invalidationConditions":{"en":"","ar":""},"entryZone":[lo,hi],"targetZone":[lo,hi],"stopLoss":0,"supportingAgents":[""]}]}
-Rules: From the screened movers + news, select the STRONGEST opportunities. Produce up to 12 recommendations (most compelling first), up to 4 classified news items, up to 3 causality chains, and overall sentiment. Emit an urgentAlert ONLY when urgencyScore>=80 AND confidenceScore>=75 AND riskScore<=65 AND >=3 supporting agents AND a clear catalyst; else none. Prefer "watch" over "buy" when conviction is low. Ground every claim in the provided data.`;
+Rules: From the screened movers + news, select the STRONGEST opportunities. Produce up to 6 recommendations (most compelling first), up to 3 classified news items, up to 2 causality chains, and overall sentiment. Emit an urgentAlert ONLY when urgencyScore>=80 AND confidenceScore>=75 AND riskScore<=65 AND >=3 supporting agents AND a clear catalyst; else none (empty array). Prefer "watch" over "buy" when conviction is low. Keep every {en,ar} text field to ONE short sentence. Ground every claim in the provided data.`;
 
 async function sbUpsert(SB, SK, key, data) {
   await fetch(`${SB}/rest/v1/agent_cache?on_conflict=key`, {
@@ -120,7 +120,7 @@ export default async () => {
     // 2) Shortlist the strongest movers (by absolute % change).
     const shortlist = quotes
       .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
-      .slice(0, 25);
+      .slice(0, 18);
 
     // 3) Market news.
     const general = (await j(`${FINNHUB}/news?category=general&token=${fkey}`)) || [];
@@ -137,7 +137,7 @@ export default async () => {
       method: 'POST',
       headers: { 'x-api-key': akey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model, max_tokens: 4096,
+        model, max_tokens: 8192,
         system: 'You are an investment intelligence multi-agent system for educational research only (no trade execution). Output strictly valid minified JSON per the schema with fluent Arabic in every {en,ar} field.',
         messages: [{ role: 'user', content: userContent }],
       }),
