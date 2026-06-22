@@ -44,11 +44,7 @@ export default function Assistant() {
     setBusy(true);
     scroll();
     try {
-      const res = await fetch('/.netlify/functions/ask', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: q }),
-      });
+      const res = await fetch('/.netlify/functions/ask?q=' + encodeURIComponent(q));
       const text = await res.text();
       const s = text.indexOf('{');
       const e = text.lastIndexOf('}');
