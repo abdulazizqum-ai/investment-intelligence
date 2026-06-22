@@ -13,6 +13,7 @@ import {
   Layers,
   Cpu,
   Bell,
+  Bot,
   Settings,
   Moon,
   Sun,
@@ -38,6 +39,7 @@ const navItems = [
   { to: '/assets', key: 'assets', icon: Layers },
   { to: '/agents', key: 'agents', icon: Cpu },
   { to: '/alerts', key: 'alerts', icon: Bell },
+  { to: '/assistant', key: 'assistant', icon: Bot },
   { to: '/settings', key: 'settings', icon: Settings },
 ] as const;
 

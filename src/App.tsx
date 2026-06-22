@@ -13,6 +13,7 @@ import CompanyAnalysis from './pages/CompanyAnalysis';
 import AssetClasses from './pages/AssetClasses';
 import AgentControlCenter from './pages/AgentControlCenter';
 import Alerts from './pages/Alerts';
+import Assistant from './pages/Assistant';
 import Settings from './pages/Settings';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/assets" element={<AssetClasses />} />
         <Route path="/agents" element={<AgentControlCenter />} />
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/assistant" element={<Assistant />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
